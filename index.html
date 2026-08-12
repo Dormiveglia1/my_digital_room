@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Yuhao (Eric) Zhang 鈥?Computer Science student building full-stack systems, AI experiments, and small interactive worlds." />
+    <meta name="description" content="Yuhao (Eric) Zhang - Computer Science student building full-stack systems, AI experiments, and small interactive worlds." />
     <meta name="theme-color" content="#101827" />
     <meta property="og:title" content="Yuhao (Eric) Zhang | My Digital Room" />
     <meta property="og:description" content="An interactive portfolio for a Computer Science student exploring full-stack development, AI, and game development." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
-    <title>Eric Zhang 鈥?My Digital Room</title>
+    <title>Eric Zhang - My Digital Room</title>
     <link rel="stylesheet" href="styles.css?v=20260811-project-details" />
   </head>
   <body>
@@ -21,7 +21,7 @@
           <p class="eyebrow">TRANSMISSION OPEN</p>
           <h1>MY DIGITAL ROOM</h1>
           <p>A small corner of the universe, maintained by Eric.</p>
-          <button id="enter-room" class="primary-button">ENTER ROOM <span>鈫?/span></button>
+          <button id="enter-room" class="primary-button">ENTER ROOM <span aria-hidden="true">&nearr;</span></button>
           <p class="entry-note">Sound begins after entry.</p>
         </div>
       </section>
@@ -33,15 +33,15 @@
           <img src="assets/my-digital-room/bedroom/overlays/ship-map-plaque.png" alt="" />
           <span>MAP</span>
         </button>
-        <button id="mute-button" class="mute-button" aria-pressed="false" aria-label="Toggle ambient music">鈾?SOUND ON</button>
-        <p id="scene-label" class="scene-label">ERIC'S ROOM 路 CLICK AROUND</p>
+        <button id="mute-button" class="mute-button" aria-pressed="false" aria-label="Toggle ambient music">MUSIC ON</button>
+        <p id="scene-label" class="scene-label">ERIC'S ROOM - CLICK AROUND</p>
         <div id="toast" class="toast" role="status"></div>
         <div id="hotspot-tooltip" class="hotspot-tooltip" role="status"></div>
       </section>
     </main>
 
     <dialog id="map-dialog" class="system-dialog map-dialog">
-      <button class="dialog-close" data-close-dialog="map-dialog" aria-label="Close map">脳</button>
+      <button class="dialog-close" data-close-dialog="map-dialog" aria-label="Close map">&times;</button>
       <p class="eyebrow">SHIP MAP</p>
       <h2>Where to?</h2>
       <div class="map-routes">
@@ -51,77 +51,77 @@
     </dialog>
 
     <dialog id="profile-dialog" class="system-dialog profile-dialog">
-      <button class="dialog-close" data-close-dialog="profile-dialog" aria-label="Close profile">脳</button>
+      <button class="dialog-close" data-close-dialog="profile-dialog" aria-label="Close profile">&times;</button>
       <div id="profile-photo" class="profile-photo" aria-label="Photo placeholder">YOUR<br />PHOTO</div>
       <div>
         <p class="eyebrow">CREW MANIFEST</p>
         <h2 id="profile-name">Yuhao (Eric) Zhang</h2>
-        <p id="profile-degree" class="profile-role">B.Sc. Computer Science 路 McMaster University</p>
+        <p id="profile-degree" class="profile-role">B.Sc. Computer Science - McMaster University</p>
         <p id="profile-intro">I build full-stack systems, AI experiments, and small worlds people can get lost in.</p>
         <p id="profile-note">Currently navigating my final year, side quests, and the occasional mysterious bug.</p>
         <dl class="profile-facts">
           <div><dt>EDUCATION</dt><dd id="profile-school">McMaster University</dd></div>
           <div><dt>GPA</dt><dd id="profile-gpa">Add GPA</dd></div>
-          <div><dt>TIMELINE</dt><dd id="profile-timeline">2022 鈥?2026 (expected)</dd></div>
+          <div><dt>TIMELINE</dt><dd id="profile-timeline">2022 - 2026 (expected)</dd></div>
           <div><dt>CONTACT</dt><dd><a id="profile-email" href="#" data-placeholder-link>Add email</a></dd></div>
-          <div><dt>FOCUS</dt><dd id="profile-focus">Full-Stack 路 AI 路 Game Development</dd></div>
+          <div><dt>FOCUS</dt><dd id="profile-focus">Full-Stack - AI - Game Development</dd></div>
           <div><dt>STATUS</dt><dd id="profile-status">Open to opportunities</dd></div>
           <div><dt>BASE</dt><dd id="profile-location">Hamilton, Ontario</dd></div>
         </dl>
         <div class="profile-links">
-          <a id="profile-linkedin" href="#" data-placeholder-link>LinkedIn 鈫?/a>
-          <a id="profile-github" href="#" data-placeholder-link>GitHub 鈫?/a>
-          <a id="profile-resume" href="#" data-placeholder-link>Download r茅sum茅 鈫?/a>
+          <a id="profile-linkedin" href="#" data-placeholder-link>LinkedIn &nearr;</a>
+          <a id="profile-github" href="#" data-placeholder-link>GitHub &nearr;</a>
+          <a id="profile-resume" href="#" data-placeholder-link>Download Resume &nearr;</a>
         </div>
       </div>
     </dialog>
 
     <dialog id="computer-dialog" class="system-dialog computer-dialog">
-      <button class="dialog-close" data-close-dialog="computer-dialog" aria-label="Close desktop">脳</button>
+      <button class="dialog-close" data-close-dialog="computer-dialog" aria-label="Close desktop">&times;</button>
       <header><p class="eyebrow">ERIC_OS / DESKTOP</p><h2>Choose a folder</h2></header>
       <div class="folder-grid" id="folder-grid"></div>
       <article id="project-detail" class="project-detail is-hidden"></article>
     </dialog>
 
     <dialog id="photos-dialog" class="system-dialog photos-dialog">
-      <button class="dialog-close" data-close-dialog="photos-dialog" aria-label="Close photo wall">脳</button>
+      <button class="dialog-close" data-close-dialog="photos-dialog" aria-label="Close photo wall">&times;</button>
       <p class="eyebrow">PHOTO WALL</p><h2>Small moments, loosely pinned.</h2>
       <div class="photo-grid" id="photo-grid"></div>
       <article id="photo-detail" class="photo-detail is-hidden"></article>
     </dialog>
 
     <dialog id="games-dialog" class="system-dialog games-dialog">
-      <button class="dialog-close" data-close-dialog="games-dialog" aria-label="Close games">脳</button>
+      <button class="dialog-close" data-close-dialog="games-dialog" aria-label="Close games">&times;</button>
       <p class="eyebrow">GAME SHELF</p><h2>Recent worlds visited</h2>
       <div class="game-grid" id="game-grid"></div>
       <article id="game-detail" class="game-detail is-hidden"></article>
     </dialog>
 
     <dialog id="music-dialog" class="system-dialog music-dialog">
-      <button class="dialog-close" data-close-dialog="music-dialog" aria-label="Close music library">脳</button>
+      <button class="dialog-close" data-close-dialog="music-dialog" aria-label="Close music library">&times;</button>
       <p class="eyebrow">TURNTABLE / MUSIC LIBRARY</p><h2>Night study radio</h2>
-      <p id="now-playing" class="now-playing">NOW PLAYING 路 Ambient slot ready</p>
+      <p id="now-playing" class="now-playing">NOW PLAYING - Ambient slot ready</p>
       <label class="volume-control" for="volume-slider">VOLUME <input id="volume-slider" type="range" min="0" max="100" value="22" /><output id="volume-value" for="volume-slider">22%</output></label>
       <div class="track-list" id="track-list"></div>
       <p class="library-note">These are editable placeholder entries. Your uploaded MP3 files will replace them in the admin dashboard.</p>
     </dialog>
 
     <dialog id="terminal-dialog" class="system-dialog terminal-dialog">
-      <button class="dialog-close" data-close-dialog="terminal-dialog" aria-label="Close terminal">脳</button>
+      <button class="dialog-close" data-close-dialog="terminal-dialog" aria-label="Close terminal">&times;</button>
       <p class="eyebrow">COMMUNICATIONS TERMINAL</p><h2>Signals from familiar frequencies</h2>
       <div class="signal-stream" id="signal-stream"></div>
-      <div class="coming-soon">GUEST MESSAGE UPLINK 路 COMING SOON</div>
+      <div class="coming-soon">GUEST MESSAGE UPLINK - COMING SOON</div>
     </dialog>
 
     <dialog id="collection-dialog" class="system-dialog collection-dialog">
-      <button class="dialog-close" data-close-dialog="collection-dialog" aria-label="Close collection">脳</button>
+      <button class="dialog-close" data-close-dialog="collection-dialog" aria-label="Close collection">&times;</button>
       <p class="eyebrow">COLLECTION VAULT</p><h2>The shelves are waiting.</h2>
       <p>Future collectibles will be added here from the private dashboard, one slot at a time.</p>
       <div id="collection-content" class="collection-content"></div>
     </dialog>
 
     <dialog id="leo-dialog" class="system-dialog leo-dialog">
-      <button class="dialog-close" data-close-dialog="leo-dialog" aria-label="Close Leo's corner">脳</button>
+      <button class="dialog-close" data-close-dialog="leo-dialog" aria-label="Close Leo's corner">&times;</button>
       <p class="eyebrow">LEO'S CORNER</p>
       <h2>Small dog. Very serious nap.</h2>
       <p class="leo-intro">Leo is a tiny brown Toy Poodle: shy with strangers, devoted to the people he knows, and quietly supervising every late-night build from his bed.</p>
