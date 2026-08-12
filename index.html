@@ -10,13 +10,17 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
     <title>Eric Zhang - My Digital Room</title>
-    <link rel="stylesheet" href="styles.css?v=20260811-project-details" />
+    <link rel="preconnect" href="https://efxceajwhbscnfwzvsyk.supabase.co" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preload" as="image" href="assets/my-digital-room/entry/base/space-flight-background-v2.png" fetchpriority="high" />
+    <link rel="preload" as="image" href="assets/my-digital-room/bedroom/base/bedroom-master.png?v=20260812-crisp-local-props-v3" />
+    <link rel="stylesheet" href="styles.css?v=20260812-performance" />
   </head>
   <body>
     <main id="app">
       <section id="entry" class="entry-screen" aria-label="Enter Eric's digital room">
-        <img class="entry-stars" src="assets/my-digital-room/entry/base/space-flight-background-v2.png" alt="A deep-space view with a crescent moon and cloud-ringed planet" />
-        <img class="entry-ship" src="assets/my-digital-room/entry/sprites/personal-ship-v3.png?v=20260812" alt="Eric's yellow-and-pink personal spaceship" />
+        <img class="entry-stars" src="assets/my-digital-room/entry/base/space-flight-background-v2.png" alt="A deep-space view with a crescent moon and cloud-ringed planet" decoding="async" fetchpriority="high" />
+        <img class="entry-ship" src="assets/my-digital-room/entry/sprites/personal-ship-v3.png?v=20260812" alt="Eric's yellow-and-pink personal spaceship" decoding="async" />
         <div class="entry-copy">
           <p class="eyebrow">TRANSMISSION OPEN</p>
           <h1>MY DIGITAL ROOM</h1>
@@ -27,7 +31,7 @@
       </section>
 
       <section id="room" class="scene is-hidden" aria-live="polite">
-        <img id="scene-image" class="scene-image" src="assets/my-digital-room/bedroom/base/bedroom-master.png?v=20260812-crisp-local-props-v3" alt="Eric's warm spaceship bedroom" />
+        <img id="scene-image" class="scene-image" src="assets/my-digital-room/bedroom/base/bedroom-master.png?v=20260812-crisp-local-props-v3" alt="Eric's warm spaceship bedroom" decoding="async" />
         <div id="scene-hotspots" class="hotspots" aria-label="Interactive room objects"></div>
         <button id="map-button" class="map-button" aria-label="Open room map">
           <img src="assets/my-digital-room/bedroom/overlays/ship-map-plaque.png" alt="" />
@@ -134,6 +138,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase.public.config.js?v=20260812-pages"></script>
     <script src="site-data.js?v=20260811-profile-facts"></script>
-    <script src="app.js?v=20260812-crisp-local-props-v3"></script>
+    <script src="app.js?v=20260812-performance-analytics"></script>
   </body>
 </html>

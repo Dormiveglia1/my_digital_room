@@ -835,14 +835,55 @@ async function hydratePublicContent() {
 
 function recordVisit() {
   if (!publicSupabase) return;
+
+  // Count one anonymous visit per browser each calendar day. This prevents a
+  // refresh from inflating the metric and does not use fingerprinting.
+  const dateKey = new Date().toISOString().slice(0, 10);
+  const storageKey = "digital-room-last-visit";
+  try {
+    if (localStorage.getItem(storageKey) === dateKey) return;
+  } catch {
+    // Privacy-restricted browsers may still record a visit for this session.
+  }
+
   publicSupabase
     .from("page_visits")
     .insert({ scene: "bedroom", referrer: document.referrer || null })
     .then(({ error }) => {
-      if (error) console.warn("Visit tracking unavailable", error.message);
+      if (error) {
+        console.warn("Visit tracking unavailable", error.message);
+        return;
+      }
+      try {
+        localStorage.setItem(storageKey, dateKey);
+      } catch {
+        // The database insert succeeded; local persistence is optional.
+      }
     });
 }
 
+function warmSceneAssets() {
+  [
+    assets.bedroomProfile,
+    assets.bedroomComputerOn,
+    assets.bedroomProfileComputerOn,
+    assets.bridge,
+    assets.collection,
+  ].forEach((url) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = url;
+  });
+}
+
+function scheduleSceneWarmup() {
+  const warmup = () => warmSceneAssets();
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(warmup, { timeout: 5000 });
+  } else {
+    window.setTimeout(warmup, 1800);
+  }
+}
 renderFolders();
 renderTracks();
 renderGames();
@@ -851,6 +892,7 @@ renderCollection();
 renderLeoCorner();
 hydratePublicContent();
 recordVisit();
+scheduleSceneWarmup();
 
 document.querySelectorAll(".profile-links a").forEach((link) =>
   link.addEventListener("click", (event) => {
