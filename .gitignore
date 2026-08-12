@@ -1,0 +1,10 @@
+﻿# Local configuration and generated temporary files
+supabase.config.js
+tmp/
+tmp-bedroom-profile-computer-base.png
+design-references/my-digital-room/clarity-preview/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
