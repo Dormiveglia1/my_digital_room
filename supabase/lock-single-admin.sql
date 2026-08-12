@@ -15,7 +15,7 @@ alter table public.portfolio_admins enable row level security;
 revoke all on table public.portfolio_admins from anon, authenticated;
 
 insert into public.portfolio_admins (user_id)
-values ('YOUR_ADMIN_USER_UUID')
+values ('6c8a3c4f-6805-4bbf-9704-68c4bd09346e')
 on conflict (user_id) do nothing;
 
 create or replace function public.is_portfolio_admin()
