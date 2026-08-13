@@ -324,7 +324,7 @@ function bindCollectionForm() {
     try {
       const payload = { owner_id: authData.user.id, slot, title: document.querySelector("#collection-title").value.trim(), description: document.querySelector("#collection-description").value.trim(), item_date: document.querySelector("#collection-date").value || null, external_url: document.querySelector("#collection-url").value.trim() || null, is_public: true };
       const image = document.querySelector("#collection-image").files?.[0];
-      if (image) payload.storage_path = await uploadGameImage(image, authData.user);
+      if (image) payload.storage_path = await uploadGameImage(image, authData.user, { folder: "collection", progressSelector: "#collection-upload-progress" });
       const { error } = await supabaseClient.from("collection_items").upsert(payload, { onConflict: "owner_id,slot" });
       if (error) throw error;
       await hydrateCollectionFromSupabase(); openCollectionSlot(slot);
@@ -739,3 +739,281 @@ bindCollectionForm();
 bindMessageForm();
 if (!supabaseClient && sessionStorage.getItem("digital-room-admin-preview")) showDashboard();
 if (supabaseClient) supabaseClient.auth.getSession().then(({ data }) => { if (data.session) showDashboard(); });
+
+// Content management enhancements: local image compression, staged upload feedback,
+// drag-to-sort for ordered lists, and editable game diary entries.
+function setUploadProgress(selector, label, value, visible = true) {
+  const control = document.querySelector(selector);
+  if (!control) return;
+  control.classList.toggle("is-hidden", !visible);
+  control.querySelector("span").textContent = label;
+  control.querySelector("progress").value = value;
+}
+
+async function compressImageForUpload(file) {
+  if (!file?.type?.startsWith("image/") || file.type === "image/svg+xml") return file;
+  const maxDimension = 2200;
+  let bitmap; try { bitmap = await createImageBitmap(file); } catch { return file; }
+  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width; canvas.height = height;
+  canvas.getContext("2d", { alpha: true }).drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.84));
+  if (!blob || blob.size >= file.size) return file;
+  const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
+  return new File([blob], `${baseName}.webp`, { type: "image/webp", lastModified: Date.now() });
+}
+
+async function uploadStoredFile(file, user, folder, progressSelector) {
+  setUploadProgress(progressSelector, "Preparing file…", 8);
+  const prepared = await compressImageForUpload(file);
+  const compressed = prepared !== file;
+  setUploadProgress(progressSelector, compressed ? `Image compressed: ${(prepared.size / 1024 / 1024).toFixed(1)} MB` : "Uploading file…", 28);
+  const path = `${user.id}/${folder}/${globalThis.crypto?.randomUUID?.() ?? Date.now()}-${safeFileName(prepared.name)}`;
+  setUploadProgress(progressSelector, "Uploading to Supabase Storage…", 55);
+  const { error } = await supabaseClient.storage.from("portfolio-assets").upload(path, prepared, { upsert: false, contentType: prepared.type || undefined });
+  if (error) throw error;
+  setUploadProgress(progressSelector, "Storage upload complete. Saving record…", 86);
+  return { path, prepared, compressed };
+}
+
+function makeSortable(container, table, afterSave) {
+  if (!supabaseClient) return;
+  const rows = [...container.querySelectorAll(".content-row[data-record-id]")];
+  let dragged = null;
+  rows.forEach((item) => {
+    item.draggable = true;
+    item.addEventListener("dragstart", () => { dragged = item; item.classList.add("is-dragging"); });
+    item.addEventListener("dragend", async () => {
+      item.classList.remove("is-dragging");
+      container.querySelectorAll(".drag-target").forEach((row) => row.classList.remove("drag-target"));
+      if (!dragged) return;
+      dragged = null;
+      const { data: authData } = await supabaseClient.auth.getUser();
+      if (!authData.user) return;
+      const ordered = [...container.querySelectorAll(".content-row[data-record-id]")];
+      try {
+        await Promise.all(ordered.map((rowElement, sortOrder) => supabaseClient.from(table).update({ sort_order: sortOrder }).eq("id", rowElement.dataset.recordId).eq("owner_id", authData.user.id)));
+        await afterSave?.();
+      } catch (error) { alert(`Could not save order: ${error.message}`); }
+    });
+    item.addEventListener("dragover", (event) => { event.preventDefault(); if (dragged && dragged !== item) item.classList.add("drag-target"); });
+    item.addEventListener("dragleave", () => item.classList.remove("drag-target"));
+    item.addEventListener("drop", (event) => {
+      event.preventDefault(); item.classList.remove("drag-target");
+      if (!dragged || dragged === item) return;
+      const bounds = item.getBoundingClientRect();
+      container.insertBefore(dragged, event.clientY < bounds.top + bounds.height / 2 ? item : item.nextSibling);
+    });
+  });
+}
+
+function actions(...buttons) {
+  const group = document.createElement("div"); group.className = "row-actions"; group.append(...buttons); return group;
+}
+
+function renderPhotoEditor() {
+  const editor = document.querySelector("#photo-editor"); editor.innerHTML = "";
+  adminData.photos.forEach((item) => {
+    const itemRow = row(item.alt, item.src ? "image linked" : "empty slot");
+    if (item.id) {
+      itemRow.dataset.recordId = item.id;
+      const remove = document.createElement("button"); remove.className = "remove-action"; remove.type = "button"; remove.textContent = "REMOVE"; remove.addEventListener("click", () => deletePhoto(item));
+      itemRow.append(actions(remove));
+    }
+    editor.append(itemRow);
+  });
+  document.querySelector("#photo-count").textContent = String(adminData.photos.length).padStart(2, "0");
+  makeSortable(editor, "photos", hydratePhotosFromSupabase);
+}
+
+function renderMusicEditor(tracks = []) {
+  const editor = document.querySelector("#music-editor"); editor.innerHTML = "";
+  if (!tracks.length) editor.append(row("No uploaded tracks yet", "Upload an MP3 to build the turntable playlist."));
+  tracks.forEach((track, index) => {
+    const trackRow = row(track.title, `track ${String(index + 1).padStart(2, "0")}`); trackRow.dataset.recordId = track.id;
+    const remove = document.createElement("button"); remove.type = "button"; remove.className = "remove-action"; remove.textContent = "REMOVE"; remove.addEventListener("click", () => deleteMusicTrack(track));
+    trackRow.append(actions(remove)); editor.append(trackRow);
+  });
+  makeSortable(editor, "music_tracks", hydrateMusicFromSupabase);
+}
+
+function renderProjectEditor(projects = []) {
+  const editor = document.querySelector("#project-editor"); editor.innerHTML = "";
+  if (!projects.length) editor.append(row("No saved projects yet", "Use the form above to add your first one."));
+  projects.forEach((project) => {
+    const projectRow = row(`${project.category} · ${project.title}`, project.summary || "No summary"); projectRow.dataset.recordId = project.id;
+    const edit = document.createElement("button"); edit.type = "button"; edit.className = "remove-action"; edit.textContent = "EDIT"; edit.addEventListener("click", () => editProject(project));
+    const remove = document.createElement("button"); remove.type = "button"; remove.className = "remove-action"; remove.textContent = "REMOVE"; remove.addEventListener("click", () => deleteProject(project));
+    projectRow.append(actions(edit, remove)); editor.append(projectRow);
+  });
+  document.querySelector("#project-count").textContent = String(projects.length).padStart(2, "0");
+  makeSortable(editor, "projects", hydrateProjectsFromSupabase);
+}
+
+function renderMessageEditor(messages = messageItems) {
+  const editor = document.querySelector("#message-editor"); editor.innerHTML = "";
+  if (!messages.length) editor.append(row("No saved signals yet", "Add the first broadcast above."));
+  messages.forEach((message, index) => {
+    const messageRow = row(message.body, `signal ${String(index + 1).padStart(2, "0")}`); if (!String(message.id).startsWith("preview-")) messageRow.dataset.recordId = message.id;
+    const edit = document.createElement("button"); edit.type = "button"; edit.className = "remove-action"; edit.textContent = "EDIT"; edit.addEventListener("click", () => editMessage(message));
+    const remove = document.createElement("button"); remove.type = "button"; remove.className = "remove-action"; remove.textContent = "REMOVE"; remove.addEventListener("click", () => deleteMessage(message));
+    messageRow.append(actions(edit, remove)); editor.append(messageRow);
+  });
+  makeSortable(editor, "terminal_messages", hydrateMessagesFromSupabase);
+}
+
+async function uploadGameImage(file, user, options = {}) {
+  const { path } = await uploadStoredFile(file, user, options.folder ?? "game-covers", options.progressSelector ?? "#game-upload-progress");
+  return path;
+}
+
+function editDiaryEntry(entry) {
+  document.querySelector("#diary-id").value = entry.id;
+  document.querySelector("#diary-date").value = entry.published_at ?? "";
+  document.querySelector("#diary-body").value = entry.body;
+  document.querySelector("#diary-save").textContent = "SAVE DIARY ENTRY";
+  document.querySelector("#diary-cancel").classList.remove("is-hidden");
+  document.querySelector("#diary-form").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function renderDiaryEditor(entries = []) {
+  const editor = document.querySelector("#diary-editor"); editor.innerHTML = "";
+  if (!entries.length) editor.append(row("No diary entries yet", "Write the first note for this game."));
+  entries.forEach((entry) => {
+    const mediaLabel = entry.media?.length ? ` · ${entry.media.length} photo${entry.media.length === 1 ? "" : "s"}` : "";
+    const item = row(entry.body.slice(0, 90) || "Untitled note", `${entry.published_at ?? "Undated"}${mediaLabel}`);
+    const edit = document.createElement("button"); edit.type = "button"; edit.className = "remove-action"; edit.textContent = "EDIT"; edit.addEventListener("click", () => editDiaryEntry(entry));
+    const remove = document.createElement("button"); remove.type = "button"; remove.className = "remove-action"; remove.textContent = "REMOVE"; remove.addEventListener("click", () => deleteDiaryEntry(entry));
+    item.append(actions(edit, remove)); editor.append(item);
+  });
+}
+
+async function hydrateDiaryEntries() {
+  if (!selectedGameFolder) return;
+  const [{ data: entries, error }, { data: media, error: mediaError }] = await Promise.all([
+    supabaseClient.from("game_diary_entries").select("id, body, published_at").eq("game_entry_id", selectedGameFolder.id).order("published_at", { ascending: false }),
+    supabaseClient.from("game_entry_media").select("id, diary_entry_id, storage_path").eq("game_entry_id", selectedGameFolder.id).order("sort_order", { ascending: true }),
+  ]);
+  if (error || mediaError) return console.warn("Could not load diary entries", error?.message || mediaError?.message);
+  const mediaByEntry = new Map();
+  (media ?? []).forEach((item) => mediaByEntry.set(item.diary_entry_id, [...(mediaByEntry.get(item.diary_entry_id) ?? []), item]));
+  renderDiaryEditor((entries ?? []).map((entry) => ({ ...entry, media: mediaByEntry.get(entry.id) ?? [] })));
+}
+
+function resetDiaryForm() {
+  document.querySelector("#diary-form").reset(); document.querySelector("#diary-id").value = "";
+  document.querySelector("#diary-save").textContent = "ADD DIARY ENTRY"; document.querySelector("#diary-cancel").classList.add("is-hidden");
+  setUploadProgress("#diary-upload-progress", "", 0, false);
+}
+
+async function deleteDiaryEntry(entry) {
+  const attachmentWarning = entry.media?.length ? ` This will also delete ${entry.media.length} attached photo${entry.media.length === 1 ? "" : "s"}.` : "";
+  if (!confirm(`Remove this diary entry?${attachmentWarning}`)) return;
+  const { data: media } = await supabaseClient.from("game_entry_media").select("storage_path").eq("diary_entry_id", entry.id);
+  const { error } = await supabaseClient.from("game_diary_entries").delete().eq("id", entry.id);
+  if (error) return alert(`Could not remove diary entry: ${error.message}`);
+  const paths = (media ?? []).map((item) => item.storage_path).filter(Boolean);
+  if (paths.length) { const { error: storageError } = await supabaseClient.storage.from("portfolio-assets").remove(paths); if (storageError) console.warn("Diary removed but media cleanup failed", storageError.message); }
+  resetDiaryForm(); await hydrateDiaryEntries();
+}
+
+async function uploadAsset(file, kind) {
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  if (authError || !authData.user) throw new Error("Please sign in before uploading.");
+  const progressSelector = kind === "photos" ? "#photo-upload-progress" : "#music-upload-progress";
+  const { path } = await uploadStoredFile(file, authData.user, kind, progressSelector);
+  const record = kind === "photos" ? { owner_id: authData.user.id, storage_path: path, alt_text: file.name, sort_order: 0 } : { owner_id: authData.user.id, title: file.name.replace(/\.[^.]+$/, ""), storage_path: path, sort_order: 0 };
+  const table = kind === "photos" ? "photos" : "music_tracks";
+  const { data: inserted, error: insertError } = await supabaseClient.from(table).insert(record).select().single();
+  if (insertError) { await supabaseClient.storage.from("portfolio-assets").remove([path]); throw insertError; }
+  setUploadProgress(progressSelector, "Upload complete.", 100);
+  setTimeout(() => setUploadProgress(progressSelector, "", 0, false), 1800);
+  return inserted;
+}
+
+function bindUpload(inputSelector, listSelector, kind) {
+  document.querySelector(inputSelector).addEventListener("change", async (event) => {
+    const list = document.querySelector(listSelector); const files = [...event.target.files]; if (!files.length) return;
+    event.target.disabled = true;
+    for (const file of files) {
+      try {
+        if (supabaseClient) {
+          await uploadAsset(file, kind === "image" ? "photos" : "music");
+          if (kind === "image") await hydratePhotosFromSupabase(); else await hydrateMusicFromSupabase();
+        } else list.append(row(file.name, `${kind} preview · ${(file.size / 1024 / 1024).toFixed(1)} MB`));
+      } catch (error) { alert(`Could not upload ${file.name}: ${error.message}`); }
+    }
+    event.target.value = ""; event.target.disabled = false;
+  });
+}
+
+function bindGameForm() {
+  const form = document.querySelector("#game-form");
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault(); if (!supabaseClient) return alert("Connect Supabase before saving a game folder.");
+    const { data: authData } = await supabaseClient.auth.getUser(); if (!authData.user) return alert("Please sign in again before saving.");
+    const id = document.querySelector("#game-id").value; const coverFile = document.querySelector("#game-cover").files?.[0]; const save = document.querySelector("#game-save"); save.disabled = true; save.textContent = "SAVING…";
+    try {
+      const payload = { owner_id: authData.user.id, title: document.querySelector("#game-title").value.trim(), diary: "", is_public: true, updated_at: new Date().toISOString() };
+      if (coverFile) payload.cover_path = await uploadGameImage(coverFile, authData.user, { folder: "game-covers", progressSelector: "#game-upload-progress" });
+      const query = id ? supabaseClient.from("game_entries").update(payload).eq("id", id).eq("owner_id", authData.user.id) : supabaseClient.from("game_entries").insert(payload); const { error } = await query; if (error) throw error;
+      setUploadProgress("#game-upload-progress", "Saved.", 100); setTimeout(() => setUploadProgress("#game-upload-progress", "", 0, false), 1800); resetGameForm(); await hydrateGamesFromSupabase();
+    } catch (error) { alert(`Could not save game folder: ${error.message}`); } finally { save.disabled = false; }
+  });
+  document.querySelector("#game-cancel").addEventListener("click", resetGameForm);
+  document.querySelector("#diary-form").addEventListener("submit", async (event) => {
+    event.preventDefault(); if (!selectedGameFolder) return; const { data: authData } = await supabaseClient.auth.getUser(); if (!authData.user) return;
+    const save = document.querySelector("#diary-save"); save.disabled = true; save.textContent = "SAVING…";
+    try {
+      const id = document.querySelector("#diary-id").value;
+      const payload = { owner_id: authData.user.id, game_entry_id: selectedGameFolder.id, body: document.querySelector("#diary-body").value.trim(), published_at: document.querySelector("#diary-date").value || null, updated_at: new Date().toISOString() };
+      const result = id ? await supabaseClient.from("game_diary_entries").update(payload).eq("id", id).eq("owner_id", authData.user.id).select("id").single() : await supabaseClient.from("game_diary_entries").insert(payload).select("id").single();
+      if (result.error) throw result.error; const entryId = result.data.id;
+      const files = [...document.querySelector("#diary-media").files];
+      for (const [index, file] of files.entries()) {
+        const storagePath = await uploadGameImage(file, authData.user, { folder: "game-diary", progressSelector: "#diary-upload-progress" });
+        const { error: mediaError } = await supabaseClient.from("game_entry_media").insert({ owner_id: authData.user.id, game_entry_id: selectedGameFolder.id, diary_entry_id: entryId, storage_path: storagePath, sort_order: index }); if (mediaError) throw mediaError;
+      }
+      setUploadProgress("#diary-upload-progress", "Diary saved.", 100); setTimeout(() => setUploadProgress("#diary-upload-progress", "", 0, false), 1800); resetDiaryForm(); await hydrateDiaryEntries();
+    } catch (error) { alert(`Could not save diary entry: ${error.message}`); } finally { save.disabled = false; }
+  });
+  document.querySelector("#diary-cancel").addEventListener("click", resetDiaryForm);
+}
+function bindProfilePhotoUpload() {
+  document.querySelector("#profile-photo-upload").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0]; if (!file || !supabaseClient) return;
+    event.target.disabled = true;
+    try {
+      const { data: authData } = await supabaseClient.auth.getUser(); if (!authData.user) throw new Error("Please sign in before uploading.");
+      const { path, compressed } = await uploadStoredFile(file, authData.user, "profile", "#profile-upload-progress");
+      adminData.profile.photoUrl = publicAssetUrl(path); await saveProfileToSupabase();
+      alert(`Profile photo uploaded${compressed ? " after local compression" : ""}.`);
+    } catch (error) { alert(`Could not upload profile photo: ${error.message}`); }
+    finally { event.target.value = ""; event.target.disabled = false; }
+  });
+}
+
+function bindLeoAdmin() {
+  document.querySelector("#leo-intro-input").value = adminData.profile.leoIntro ?? "";
+  document.querySelector("#leo-form").addEventListener("submit", async (event) => {
+    event.preventDefault(); adminData.profile.leoIntro = document.querySelector("#leo-intro-input").value.trim();
+    try { await saveProfileToSupabase(); alert("Leo’s corner details saved."); } catch (error) { alert(`Could not save Leo details: ${error.message}`); }
+  });
+  document.querySelector("#leo-photo-upload").addEventListener("change", async (event) => {
+    const files = [...event.target.files]; if (!files.length || !supabaseClient) return;
+    const remaining = 5 - (adminData.profile.leoPhotos?.length ?? 0); if (remaining <= 0) return alert("Leo’s Corner holds up to five photos. Remove one first.");
+    event.target.disabled = true;
+    try {
+      const { data: authData } = await supabaseClient.auth.getUser(); if (!authData.user) throw new Error("Please sign in before uploading.");
+      adminData.profile.leoPhotos ||= [];
+      for (const file of files.slice(0, remaining)) { const { path } = await uploadStoredFile(file, authData.user, "leo", "#leo-upload-progress"); adminData.profile.leoPhotos.push(publicAssetUrl(path)); }
+      await saveProfileToSupabase(); renderLeoEditor();
+    } catch (error) { alert(`Could not upload Leo snapshot: ${error.message}`); }
+    finally { event.target.value = ""; event.target.disabled = false; }
+  });
+  renderLeoEditor();
+}
