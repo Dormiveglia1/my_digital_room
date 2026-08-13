@@ -525,6 +525,7 @@ async function hydratePublicPhotos() {
   );
   content.photos = [...remotePhotos, ...emptySlots];
   renderPhotoGrid();
+  renderMobilePortfolio();
 }
 
 renderPhotoGrid();
@@ -701,6 +702,19 @@ function openCollectionItem(item) {
   openDialog("collection-dialog");
 }
 
+function renderMobilePortfolio() {
+  const profile = content.profile;
+  const set = (id, value) => { const el = document.querySelector(id); if (el) el.textContent = value || ""; };
+  const link = (id, href, label) => { const el = document.querySelector(id); if (!el) return; const active = href && href !== "#"; el.hidden = !active; el.href = active ? href : "#"; el.textContent = label; if (active && !href.startsWith("mailto:")) { el.target = "_blank"; el.rel = "noreferrer"; } };
+  set("#mobile-name", profile.name); set("#mobile-degree", profile.degree); set("#mobile-focus", profile.focus); set("#mobile-intro", profile.intro); set("#mobile-note", profile.note); set("#mobile-school", profile.school); set("#mobile-gpa", profile.gpa); set("#mobile-timeline", profile.timeline); set("#mobile-location", profile.location); set("#mobile-status", profile.status); set("#mobile-leo-intro", profile.leoIntro);
+  link("#mobile-resume", profile.links?.resume, "RESUME"); link("#mobile-github", profile.links?.github, "GITHUB"); link("#mobile-linkedin", profile.links?.linkedin, "LINKEDIN"); link("#mobile-email", profile.email ? `mailto:${profile.email}` : "", profile.email || "");
+  const portrait = document.querySelector("#mobile-profile-photo"); portrait.replaceChildren(); if (profile.photoUrl) { const image=document.createElement("img"); image.src=profile.photoUrl; image.alt=`${profile.name} profile photo`; portrait.append(image); } else portrait.textContent="YOUR PHOTO";
+  const projects=document.querySelector("#mobile-projects"); projects.replaceChildren(...content.folders.map((folder)=>{ const card=document.createElement("details"); card.className="mobile-project"; const summary=document.createElement("summary"); const parts=String(folder.name).split(" - "); const category=document.createElement("span"); category.className="mobile-category"; category.textContent=parts.length>1?parts.shift():"PROJECT"; summary.append(category,document.createTextNode(parts.join(" - ")||folder.name)); const copy=document.createElement("p"); copy.textContent=folder.summary||folder.detail||"Project details coming soon."; card.append(summary,copy); if(folder.stack?.length){const stack=document.createElement("p"); stack.textContent=`Stack: ${folder.stack.join(", ")}`; card.append(stack);} const links=document.createElement("div"); links.className="mobile-project-links"; [["VIEW LIVE",folder.liveUrl],["VIEW SOURCE",folder.sourceUrl]].forEach(([label,href])=>{if(!href)return;const a=document.createElement("a");a.href=href;a.target="_blank";a.rel="noreferrer";a.textContent=label;links.append(a);}); if(links.childElementCount)card.append(links); return card;}));
+  const photos=document.querySelector("#mobile-photos"); const publicPhotos=content.photos.filter((photo)=>photo.src); photos.replaceChildren(...publicPhotos.map((photo)=>{const image=document.createElement("img");image.src=photo.src;image.alt=photo.alt||"Portfolio photo";image.loading="lazy";return image;})); if(!publicPhotos.length) photos.innerHTML='<p class="mobile-empty">Photo wall is being developed.</p>';
+  const games=document.querySelector("#mobile-games"); games.replaceChildren(...content.games.map((game)=>{const card=document.createElement("details");card.className="mobile-game";const summary=document.createElement("summary");summary.textContent=game.title;card.append(summary);if(game.cover){const image=document.createElement("img");image.className="mobile-game-cover";image.src=game.cover;image.alt=`${game.title} cover`;card.append(image);}const entries=game.diaryEntries??(game.diary?[{body:game.diary,published:game.published,media:[]}]:[]);entries.forEach((entry)=>{const body=document.createElement("p");body.textContent=entry.body;const date=document.createElement("p");date.className="mobile-muted";date.textContent=entry.published||"Undated";card.append(body,date);if(entry.media?.length){const media=document.createElement("div");media.className="mobile-game-media";entry.media.forEach((src)=>{const image=document.createElement("img");image.src=src;image.alt=`${game.title} diary image`;image.loading="lazy";media.append(image);});card.append(media);}});return card;}));
+  const signals=document.querySelector("#mobile-signals");signals.replaceChildren(...content.signals.map((signal)=>{const p=document.createElement("p");p.textContent=signal;return p;}));
+  const leo=document.querySelector("#mobile-leo-photos");leo.replaceChildren(...(profile.leoPhotos??[]).map((src)=>{const image=document.createElement("img");image.src=src;image.alt="Leo, Eric's Toy Poodle";image.loading="lazy";return image;}));
+}
 async function hydratePublicContent() {
   if (!publicSupabase) return;
   const [
@@ -831,7 +845,9 @@ async function hydratePublicContent() {
   renderSignals();
   renderCollection();
   if (currentScene === "collection") renderHotspots();
+  renderMobilePortfolio();
 }
+
 
 function recordVisit() {
   if (!publicSupabase) return;
@@ -890,6 +906,7 @@ renderGames();
 renderSignals();
 renderCollection();
 renderLeoCorner();
+renderMobilePortfolio();
 hydratePublicContent();
 recordVisit();
 scheduleSceneWarmup();
