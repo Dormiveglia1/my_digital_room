@@ -12,15 +12,9 @@ const assets = {
 };
 
 const content = window.RoomData;
-const publicSupabase =
-  window.SUPABASE_CONFIG?.url &&
-  window.SUPABASE_CONFIG?.publishableKey &&
-  window.supabase
-    ? window.supabase.createClient(
-        window.SUPABASE_CONFIG.url,
-        window.SUPABASE_CONFIG.publishableKey,
-      )
-    : null;
+// Static GitHub Pages mode: site-data.js is the source of truth.
+const publicSupabase = null;
+content.signals = (content.signals ?? []).map((signal) => typeof signal === "string" ? signal : signal.body);
 
 const sceneImage = document.querySelector("#scene-image");
 const sceneHotspots = document.querySelector("#scene-hotspots");
@@ -529,7 +523,6 @@ async function hydratePublicPhotos() {
 }
 
 renderPhotoGrid();
-hydratePublicPhotos();
 
 function renderGames() {
   const grid = document.querySelector("#game-grid");
@@ -907,8 +900,6 @@ renderSignals();
 renderCollection();
 renderLeoCorner();
 renderMobilePortfolio();
-hydratePublicContent();
-recordVisit();
 scheduleSceneWarmup();
 
 document.querySelectorAll(".profile-links a").forEach((link) =>

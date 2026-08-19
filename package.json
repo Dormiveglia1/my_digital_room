@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "scripts": {
+    "admin": "node tools/local-editor-server.mjs"
+  }
+}
